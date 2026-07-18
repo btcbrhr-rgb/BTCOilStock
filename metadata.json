@@ -1,0 +1,6 @@
+{
+  "name": "SDMS Fuel Stock and Fuel Card Management System",
+  "description": "ระบบเชื่อมโยงคลังและบัตรเติมน้ำมัน บจก.บุรีรัมย์ธงชัยก่อสร้าง สำหรับจัดการระดับสต๊อก ประวัติรับเข้า เบิกจ่าย และข้อมูลหลักอย่างยืดหยุ่นสูง",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
