@@ -71,9 +71,26 @@ export default function DisbursementsTab({
     });
 
     // Sort by Date Descending, then ID Descending as fallback
+    const parseDateStringToMs = (dateStr: any): number => {
+      if (!dateStr) return 0;
+      const str = String(dateStr).trim();
+      const match = str.match(/^(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})$/);
+      if (match) {
+        const day = parseInt(match[1], 10);
+        const month = parseInt(match[2], 10);
+        let year = parseInt(match[3], 10);
+        if (year > 2400) {
+          year -= 543;
+        }
+        return new Date(year, month - 1, day).getTime();
+      }
+      const parsed = new Date(str).getTime();
+      return isNaN(parsed) ? 0 : parsed;
+    };
+
     return list.sort((a, b) => {
-      const timeA = new Date(a.วันที่ || 0).getTime();
-      const timeB = new Date(b.วันที่ || 0).getTime();
+      const timeA = parseDateStringToMs(a.วันที่);
+      const timeB = parseDateStringToMs(b.วันที่);
       if (timeA !== timeB) {
         return timeB - timeA;
       }

@@ -57,6 +57,7 @@ export default function CsvImportModal({
   const [missingMerchants, setMissingMerchants] = useState<string[]>([]);
   const [missingVehicles, setMissingVehicles] = useState<string[]>([]);
   const [autoRegisterMaster, setAutoRegisterMaster] = useState<boolean>(true);
+  const [importStatus, setImportStatus] = useState<"รอตรวจสอบ" | "อนุมัติแล้ว">("รอตรวจสอบ");
 
   const resetState = () => {
     setFileSelected(false);
@@ -72,6 +73,7 @@ export default function CsvImportModal({
     setMissingMerchants([]);
     setMissingVehicles([]);
     setAutoRegisterMaster(true);
+    setImportStatus("รอตรวจสอบ");
     setEmptyLinesCount(0);
     setDuplicateCount(0);
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -338,7 +340,10 @@ export default function CsvImportModal({
     setImporting(true);
     setProgressPct(10);
     
-    const newRowsToImport = parsedRows.filter(row => !row.isDuplicate);
+    const newRowsToImport = parsedRows.filter(row => !row.isDuplicate).map(row => ({
+      ...row,
+      สถานะ: importStatus
+    }));
     
     const log: string[] = [
       "// เริ่มต้นประมวลผลข้อมูลนำเข้า...", 
@@ -609,6 +614,62 @@ export default function CsvImportModal({
                     <div className="bg-slate-100 border border-slate-200 p-3 rounded-xl text-center shadow-sm">
                       <p className="text-[10px] text-slate-500 font-extrabold">บรรทัดว่างที่คัดออก</p>
                       <p className="text-sm font-black text-slate-600">{emptyLinesCount}</p>
+                    </div>
+                  </div>
+
+                  {/* Status Selection Card */}
+                  <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-3 shadow-sm">
+                    <label className="block text-xs font-black text-slate-700">
+                      ⚙️ เลือกสถานะเริ่มต้นของรายการที่จะนำเข้า (Default Status of Imported Rows)
+                    </label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {/* Option 1: รอตรวจสอบ */}
+                      <div
+                        onClick={() => setImportStatus("รอตรวจสอบ")}
+                        className={`border rounded-xl p-3 cursor-pointer transition flex items-start space-x-3 select-none ${
+                          importStatus === "รอตรวจสอบ"
+                            ? "border-amber-500 bg-amber-50/50 text-slate-850"
+                            : "border-slate-200 hover:bg-slate-50 text-slate-500"
+                        }`}
+                      >
+                        <div className={`mt-0.5 w-4 h-4 rounded-full border flex items-center justify-center flex-shrink-0 ${
+                          importStatus === "รอตรวจสอบ" ? "border-amber-500" : "border-slate-300"
+                        }`}>
+                          {importStatus === "รอตรวจสอบ" && <div className="w-2 h-2 rounded-full bg-amber-500" />}
+                        </div>
+                        <div>
+                          <span className="block text-xs font-black text-amber-700 leading-none mb-1">
+                            รอตรวจสอบ (Pending Verification)
+                          </span>
+                          <span className="block text-[10px] leading-normal font-bold text-slate-550">
+                            รายการนำเข้าจะอยู่ในสถานะ "รอตรวจสอบ" ยังไม่เพิ่ม/ลดคงคลังของถังน้ำมันโดยอัตโนมัติ (ผู้ใช้หรือแอดมินต้องตรวจสอบและอนุมัติใบงานทีละรายการเพื่อปรับคงเหลือภายหลัง)
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Option 2: อนุมัติแล้ว */}
+                      <div
+                        onClick={() => setImportStatus("อนุมัติแล้ว")}
+                        className={`border rounded-xl p-3 cursor-pointer transition flex items-start space-x-3 select-none ${
+                          importStatus === "อนุมัติแล้ว"
+                            ? "border-emerald-500 bg-emerald-50/50 text-slate-850"
+                            : "border-slate-200 hover:bg-slate-50 text-slate-500"
+                        }`}
+                      >
+                        <div className={`mt-0.5 w-4 h-4 rounded-full border flex items-center justify-center flex-shrink-0 ${
+                          importStatus === "อนุมัติแล้ว" ? "border-emerald-500" : "border-slate-300"
+                        }`}>
+                          {importStatus === "อนุมัติแล้ว" && <div className="w-2 h-2 rounded-full bg-emerald-500" />}
+                        </div>
+                        <div>
+                          <span className="block text-xs font-black text-emerald-700 leading-none mb-1">
+                            อนุมัติแล้ว (Approved & Adjust Stock)
+                          </span>
+                          <span className="block text-[10px] leading-normal font-bold text-slate-550">
+                            รายการนำเข้าจะเปลี่ยนเป็นสถานะ "อนุมัติแล้ว" และคำนวณปรับยอดคงเหลือของถังน้ำมันแกนหลักโดยอัตโนมัติทันที สะดวกสำหรับนำเข้าประวัติสะสมย้อนหลัง
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
