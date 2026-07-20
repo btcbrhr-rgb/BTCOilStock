@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   BarChart2,
   CalendarRange,
@@ -125,7 +125,17 @@ export default function DashboardTab({
   }, [tanks]);
 
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
-  const [selectedCategory, setSelectedCategory] = useState<string>(categories[0] || "");
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
+
+  useEffect(() => {
+    if (categories.length > 0) {
+      if (!selectedCategory || !categories.includes(selectedCategory)) {
+        setSelectedCategory(categories[0]);
+      }
+    } else {
+      setSelectedCategory("");
+    }
+  }, [categories, selectedCategory]);
   const [activeSubTab, setActiveSubTab] = useState<"stocks" | "purchases" | "projects">("stocks");
   const [stocksStatusFilter, setStocksStatusFilter] = useState<"all" | "critical" | "warning" | "normal">("all");
   const [consumptionMetric, setConsumptionMetric] = useState<"cost" | "qty">("cost");

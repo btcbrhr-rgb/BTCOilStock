@@ -267,7 +267,7 @@ export default function ReceiptModal({
                     </select>
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-500 mb-1">ประเภทวัสดุวัสดุ</label>
+                    <label className="block text-[10px] font-bold text-slate-500 mb-1">หมวดหมู่</label>
                     <input
                       type="text"
                       readOnly

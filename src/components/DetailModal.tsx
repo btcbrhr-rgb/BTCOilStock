@@ -138,7 +138,7 @@ export default function DetailModal({
                         <span className="font-bold text-slate-900">{r["ชื่อสินค้า (คลัง)"]}</span>
                       </div>
                       <div>
-                        <span className="block text-[10px] font-bold text-slate-400 uppercase">ประเภทผลิตภัณฑ์</span>
+                        <span className="block text-[10px] font-bold text-slate-400 uppercase">หมวดหมู่</span>
                         <span className="font-bold text-slate-900">{r.ประเภทวัสดุ}</span>
                       </div>
                       <div className="grid grid-cols-2 gap-2">

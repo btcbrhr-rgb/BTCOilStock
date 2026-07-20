@@ -9,7 +9,14 @@ import { Fuel, LogOut } from "lucide-react";
 import {
   getDatabase,
   saveDatabase,
-  adjustStockForTransaction
+  adjustStockForTransaction,
+  getSheetsUrl,
+  saveSheetsUrl,
+  testSheetsConnection,
+  fetchDatabaseFromSheets,
+  syncDatabaseToSheets,
+  resetDatabase,
+  Database
 } from "./services/db";
 import {
   User,
@@ -42,6 +49,125 @@ export default function App() {
   const [db, setDb] = useState(() => getDatabase());
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [currentTab, setCurrentTab] = useState<TabType>("dashboard");
+
+  // Sheets States
+  const [sheetsUrl, setSheetsUrl] = useState(() => getSheetsUrl());
+  const [isSheetsLoading, setIsSheetsLoading] = useState(false);
+
+  // Auto-sync wrapper
+  const saveDbState = (updatedDb: Database) => {
+    setDb(updatedDb);
+
+    if (sheetsUrl) {
+      syncDatabaseToSheets(sheetsUrl, updatedDb)
+        .then(() => {
+          console.log("Auto-synced to Sheets successfully");
+        })
+        .catch((err) => {
+          console.error("Auto-sync failed:", err);
+          triggerToast(
+            "บันทึกข้อมูลล้มเหลว",
+            "ไม่สามารถอัปเดตข้อมูลลง Google Sheets ได้โดยตรง (กรุณาเช็คอินเทอร์เน็ตหรือสิทธิ์ของสคริปต์)",
+            "error"
+          );
+        });
+    } else {
+      triggerToast(
+        "ไม่สามารถเซฟข้อมูลได้",
+        "กรุณาตั้งค่าเชื่อมต่อ Google Sheets ก่อนทำรายการเพื่อไม่ให้ข้อมูลสูญหาย",
+        "error"
+      );
+    }
+  };
+
+  // Pull data from Sheets on app startup
+  useEffect(() => {
+    const url = getSheetsUrl();
+    if (url) {
+      setIsSheetsLoading(true);
+      fetchDatabaseFromSheets(url)
+        .then((sheetsDb) => {
+          setDb(sheetsDb);
+          triggerToast(
+            "โหลดข้อมูลคลาวด์สำเร็จ",
+            "ดึงข้อมูลล่าสุดจาก Google Sheets โดยตรงสำเร็จ!",
+            "success"
+          );
+        })
+        .catch((err) => {
+          console.error("Startup Sheets fetch failed:", err);
+          triggerToast(
+            "โหลดข้อมูลไม่สำเร็จ",
+            "ไม่สามารถดึงข้อมูลจาก Google Sheets ได้โดยตรง (กรุณาตรวจสอบลิงก์เชื่อมต่อหรือตั้งค่าใหม่)",
+            "error"
+          );
+        })
+        .finally(() => {
+          setIsSheetsLoading(false);
+        });
+    }
+  }, []);
+
+  // Sheets Connection handlers
+  const handleSaveSheetsUrl = (url: string) => {
+    saveSheetsUrl(url);
+    setSheetsUrl(url);
+    triggerToast("บันทึกที่อยู่สำเร็จ", "บันทึก URL เว็บแอป Google Sheets เรียบร้อยแล้ว", "success");
+  };
+
+  const handleTestSheetsConnection = async (url: string): Promise<boolean> => {
+    setIsSheetsLoading(true);
+    try {
+      const isOk = await testSheetsConnection(url);
+      if (isOk) {
+        triggerToast("เชื่อมต่อสำเร็จ!", "สเปรดชีตตอบรับการเชื่อมต่ออย่างถูกต้อง", "success");
+        return true;
+      } else {
+        triggerToast("เชื่อมต่อล้มเหลว", "เว็บแอปไม่ตอบกลับ โปรดตรวจสอบสิทธิ์เข้าถึงสเปรดชีต (Everyone)", "error");
+        return false;
+      }
+    } catch (err) {
+      triggerToast("เชื่อมต่อล้มเหลว", "ไม่สามารถติดต่อสเปรดชีตได้ โปรดตรวจสอบลิงก์ URL อีกครั้ง", "error");
+      return false;
+    } finally {
+      setIsSheetsLoading(false);
+    }
+  };
+
+  const handleSyncWithSheets = async () => {
+    if (!sheetsUrl) {
+      triggerToast("ไม่พบลิงก์เชื่อมต่อ", "โปรดระบุและบันทึก URL เว็บแอปก่อนทำการซิงค์ข้อมูล", "error");
+      return;
+    }
+    setIsSheetsLoading(true);
+    try {
+      await syncDatabaseToSheets(sheetsUrl, db);
+      triggerToast("ซิงค์คลาวด์สำเร็จ!", "ส่งออกฐานข้อมูลปัจจุบันไปยัง Google Sheets เรียบร้อยแล้ว", "success");
+    } catch (err) {
+      console.error(err);
+      triggerToast("ซิงค์ล้มเหลว", "ไม่สามารถส่งข้อมูลขึ้นสเปรดชีตได้ โปรดตรวจสอบสิทธิ์เข้าถึงหรือลิงก์", "error");
+    } finally {
+      setIsSheetsLoading(false);
+    }
+  };
+
+  const handlePullFromSheets = async () => {
+    if (!sheetsUrl) {
+      triggerToast("ไม่พบลิงก์เชื่อมต่อ", "โปรดระบุและบันทึก URL เว็บแอปก่อนดึงข้อมูล", "error");
+      return;
+    }
+    setIsSheetsLoading(true);
+    try {
+      const sheetsDb = await fetchDatabaseFromSheets(sheetsUrl);
+      setDb(sheetsDb);
+      triggerToast("ดึงข้อมูลสำเร็จ!", "อัปเดตข้อมูลตรงจาก Google Sheets สำเร็จเรียบร้อย", "success");
+    } catch (err) {
+      console.error(err);
+      triggerToast("ดึงข้อมูลล้มเหลว", "ไม่สามารถนำข้อมูลลงมาจากสเปรดชีตได้ โปรดตรวจสอบลิงก์", "error");
+    } finally {
+      setIsSheetsLoading(false);
+    }
+  };
 
   // Project filter linking for Project Cost Summary
   const [filterProjectName, setFilterProjectName] = useState<string>("all");
@@ -201,8 +327,7 @@ export default function App() {
     }
 
     updatedDb.receipts = updatedReceipts;
-    setDb(updatedDb);
-    saveDatabase(updatedDb);
+    saveDbState(updatedDb);
 
     setShowReceiptModal(false);
     setReceiptEditMode(false);
@@ -307,8 +432,7 @@ export default function App() {
     }
 
     updatedDb.disbursements = updatedDisb;
-    setDb(updatedDb);
-    saveDatabase(updatedDb);
+    saveDbState(updatedDb);
 
     setShowDisbursementModal(false);
     setDisbursementEditMode(false);
@@ -366,8 +490,7 @@ export default function App() {
       }
     }
 
-    setDb(updatedDb);
-    saveDatabase(updatedDb);
+    saveDbState(updatedDb);
     setShowMasterModal(false);
     setEditIndex(null);
     triggerToast(
@@ -397,8 +520,7 @@ export default function App() {
         else if (type === "merchants") updatedDb.merchants.splice(idx, 1);
         else if (type === "users") updatedDb.users.splice(idx, 1);
 
-        setDb(updatedDb);
-        saveDatabase(updatedDb);
+        saveDbState(updatedDb);
         setConfirm((prev) => ({ ...prev, show: false }));
         triggerToast("ลบข้อมูลสำเร็จ", "ดึงแถวออกจากสเปรดชีตแกนกลางเรียบร้อย");
       },
@@ -455,8 +577,7 @@ export default function App() {
       });
     }
 
-    setDb(updatedDb);
-    saveDatabase(updatedDb);
+    saveDbState(updatedDb);
   };
 
   // Approver controls (Verify/Reject/Reset)
@@ -542,8 +663,7 @@ export default function App() {
           }
         }
 
-        setDb(updatedDb);
-        saveDatabase(updatedDb);
+        saveDbState(updatedDb);
         setShowDetailModal(false);
         setConfirm((prev) => ({ ...prev, show: false }));
         triggerToast("อนุมัติเสร็จสิ้น", `ใบรายการ ${selectedRecord.IDรายการ} ได้รับการลงบันทึกเป็นสิทธิ์ "${status}"`);
@@ -605,8 +725,7 @@ export default function App() {
           }
         }
 
-        setDb(updatedDb);
-        saveDatabase(updatedDb);
+        saveDbState(updatedDb);
         setShowDetailModal(false);
         setConfirm((prev) => ({ ...prev, show: false }));
         triggerToast("ปลดล็อกเอกสารสำเร็จ", `เปลี่ยนสถานะใบรายการ ${selectedRecord.IDรายการ} เป็นรอตรวจสอบอีกครั้ง`);
@@ -642,8 +761,7 @@ export default function App() {
           }
         }
 
-        setDb(updatedDb);
-        saveDatabase(updatedDb);
+        saveDbState(updatedDb);
         setShowDetailModal(false);
         setConfirm((prev) => ({ ...prev, show: false }));
         triggerToast("ลบสำเร็จ", `ลบเอกสารใบงาน ${id} เรียบร้อยแล้ว`);
@@ -893,6 +1011,12 @@ export default function App() {
             merchants={db.merchants}
             users={db.users}
             currentUser={currentUser}
+            sheetsUrl={sheetsUrl}
+            isSheetsLoading={isSheetsLoading}
+            onSaveSheetsUrl={handleSaveSheetsUrl}
+            onTestSheetsConnection={handleTestSheetsConnection}
+            onSyncWithSheets={handleSyncWithSheets}
+            onPullFromSheets={handlePullFromSheets}
             onAdd={(sub) => {
               setMasterSubTab(sub);
               setEditIndex(null);

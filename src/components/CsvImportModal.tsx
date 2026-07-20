@@ -47,6 +47,8 @@ export default function CsvImportModal({
   const [importing, setImporting] = useState<boolean>(false);
   const [progressPct, setProgressPct] = useState<number>(0);
   const [progressLog, setProgressLog] = useState<string[]>([]);
+  const [emptyLinesCount, setEmptyLinesCount] = useState<number>(0);
+  const [duplicateCount, setDuplicateCount] = useState<number>(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Missing Master Data Tracking
@@ -70,6 +72,8 @@ export default function CsvImportModal({
     setMissingMerchants([]);
     setMissingVehicles([]);
     setAutoRegisterMaster(true);
+    setEmptyLinesCount(0);
+    setDuplicateCount(0);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -107,7 +111,7 @@ export default function CsvImportModal({
       วันที่: ["วันที่", "วันที่เบิกจ่าย", "วันที่เบิก", "วันที่ทำรายการ", "วันเวลา", "เวลา", "วันที่รับเข้า"],
       ร้านค้า: ["ร้านค้า", "ผู้ค้า", "ผู้ให้บริการ", "ชื่อผู้ให้บริการ", "ร้านค้า/ผู้ให้บริการ"],
       "ชื่อสินค้า (คลัง)": ["ชื่อสินค้า (คลัง)", "ชื่อสินค้า", "สินค้า", "คลัง", "ถังเก็บ", "ถังจัดเก็บ", "ปั๊ม", "คลังสินค้า", "รายการ", "คลังสิทธิ์"],
-      ประเภทวัสดุ: ["ประเภทวัสดุ", "ประเภท", "กลุ่มวัสดุ", "ชนิดวัสดุ"],
+      ประเภทวัสดุ: ["ประเภทวัสดุ", "ประเภท", "กลุ่มวัสดุ", "ชนิดวัสดุ", "หมวดหมู่"],
       ราคา: ["ราคา", "ราคาต่อหน่วย", "ราคาต่อลิตร", "ราคาต่อบาท", "ราคาต่อลิตร/ลิตร", "ราคาต่อตัน/ตัน", "ราคาต่อหน่วย", "ราคาต่อกิโลกรัม/กิโลกรัม", "ราคาต่อลิตร/บาท", "ราคาต่อกิโลกรัม", "ราคาต่อตัน", "ราคาต่อบาท", "ราคาต่อลิตร", "ราคาต่อหน่วย", "ราคา/หน่วย"],
       หน่วยนับ: ["หน่วยนับ", "หน่วย"],
       จำนวนที่ซื้อ: ["จำนวนที่ซื้อ", "จำนวนซื้อ", "จำนวน", "ปริมาณ", "ปริมาณซื้อ"],
@@ -156,7 +160,7 @@ export default function CsvImportModal({
   const triggerPreview = () => {
     if (!csvText) return;
 
-    const lines = csvText.split(/\r?\n/).filter((l) => l.trim() !== "");
+    const lines = csvText.split(/\r?\n/);
     if (lines.length < 2) {
       showToast("ไฟล์สเปรดชีตไม่สมบูรณ์", "ไม่พบแถวข้อมูลสำหรับประมวลผล", "error");
       return;
@@ -166,11 +170,22 @@ export default function CsvImportModal({
     const list: any[] = [];
     const prefix = type === "receipts" ? "REC" : "DISB";
     const year = new Date().getFullYear();
+    let emptyCount = 0;
+    let duplicateCountTemp = 0;
 
     for (let i = 1; i < lines.length; i++) {
-      const cells = parseLine(lines[i]);
-      // Skip empty line structures
-      if (cells.length === 0 || (cells.length === 1 && cells[0] === "")) continue;
+      const line = lines[i];
+      if (line.trim() === "") {
+        emptyCount++;
+        continue;
+      }
+      
+      const cells = parseLine(line);
+      const isCompletelyEmpty = cells.every(c => c === "") || cells.join("").trim() === "";
+      if (isCompletelyEmpty) {
+        emptyCount++;
+        continue;
+      }
 
       const obj: { [key: string]: any } = {
         IDรายการ: `${prefix}-${year}-${String(100 + i).padStart(3, "0")}`,
@@ -180,13 +195,21 @@ export default function CsvImportModal({
       headers.forEach((h, colIdx) => {
         const stdHeader = resolveHeaderStandard(h);
         if (cells[colIdx] !== undefined) {
-          let cellVal = cells[colIdx];
+          let cellVal = cells[colIdx].trim();
           if (/^-?[\d,]+(?:\.\d+)?$/.test(cellVal)) {
             cellVal = cellVal.replace(/,/g, ""); // Clean numeric commas
           }
           obj[stdHeader] = cellVal;
         }
       });
+
+      const dateVal = obj[type === "receipts" ? "วันที่รับเข้า" : "วันที่"];
+      const productVal = obj["ชื่อสินค้า (คลัง)"];
+      
+      if (!dateVal || dateVal.trim() === "" || !productVal || productVal.trim() === "") {
+        emptyCount++;
+        continue;
+      }
 
       // Recalculate totals dynamically
       if (type === "receipts") {
@@ -205,6 +228,59 @@ export default function CsvImportModal({
         obj["มูลค่ารวม"] = qty * price;
       }
 
+      // Check for duplication against existing records in database
+      let isDuplicate = false;
+      if (type === "receipts") {
+        const rowMerchant = (obj["ร้านค้า"] || "").trim().toLowerCase();
+        const rowProduct = (obj["ชื่อสินค้า (คลัง)"] || "").trim().toLowerCase();
+        const rowDate = (obj["วันที่รับเข้า"] || "").trim();
+        const rowQty = parseFloat(obj["จำนวนที่ซื้อ"]) || 0;
+        const rowTotal = parseFloat(obj["มูลค่ารวม"]) || 0;
+
+        isDuplicate = db.receipts.some((existing) => {
+          const dbMerchant = (existing.ร้านค้า || "").trim().toLowerCase();
+          const dbProduct = (existing["ชื่อสินค้า (คลัง)"] || "").trim().toLowerCase();
+          const dbDate = (existing.วันที่รับเข้า || "").trim();
+          const dbQty = parseFloat(existing.จำนวนที่ซื้อ as any) || 0;
+          const dbTotal = parseFloat(existing.มูลค่ารวม as any) || 0;
+
+          return (
+            dbMerchant === rowMerchant &&
+            dbProduct === rowProduct &&
+            dbDate === rowDate &&
+            Math.abs(dbQty - rowQty) < 0.001 &&
+            Math.abs(dbTotal - rowTotal) < 0.001
+          );
+        });
+      } else {
+        const rowProduct = (obj["ชื่อสินค้า (คลัง)"] || "").trim().toLowerCase();
+        const rowDate = (obj["วันที่"] || "").trim();
+        const rowQty = parseFloat(obj["จำนวนที่จ่าย"]) || 0;
+        const rowVehicle = (obj["ทะเบียน"] || "").trim().toLowerCase().replace(/[^ก-๙a-zA-Z0-9]/g, "");
+        const rowDriver = (obj["ผู้เบิก/คนขับ"] || "").trim().toLowerCase();
+
+        isDuplicate = db.disbursements.some((existing) => {
+          const dbProduct = (existing["ชื่อสินค้า (คลัง)"] || "").trim().toLowerCase();
+          const dbDate = (existing.วันที่ || "").trim();
+          const dbQty = parseFloat(existing.จำนวนที่จ่าย as any) || 0;
+          const dbVehicle = (existing.ทะเบียน || "").trim().toLowerCase().replace(/[^ก-๙a-zA-Z0-9]/g, "");
+          const dbDriver = (existing["ผู้เบิก/คนขับ"] || "").trim().toLowerCase();
+
+          return (
+            dbProduct === rowProduct &&
+            dbDate === rowDate &&
+            Math.abs(dbQty - rowQty) < 0.001 &&
+            dbVehicle === rowVehicle &&
+            dbDriver === rowDriver
+          );
+        });
+      }
+
+      if (isDuplicate) {
+        duplicateCountTemp++;
+      }
+
+      obj.isDuplicate = isDuplicate;
       list.push(obj);
     }
 
@@ -213,14 +289,14 @@ export default function CsvImportModal({
       return;
     }
 
-    // Detect missing master data elements
-    const tanksInCsv = Array.from(new Set(list.map((r) => r["ชื่อสินค้า (คลัง)"]).filter(Boolean))) as string[];
-    const projectsInCsv = Array.from(new Set(list.map((r) => r["โครงการ"]).filter(Boolean))) as string[];
+    const newRowsOnly = list.filter((r) => !r.isDuplicate);
+    const tanksInCsv = Array.from(new Set(newRowsOnly.map((r) => r["ชื่อสินค้า (คลัง)"]).filter(Boolean))) as string[];
+    const projectsInCsv = Array.from(new Set(newRowsOnly.map((r) => r["โครงการ"]).filter(Boolean))) as string[];
     const merchantsInCsv = type === "receipts" 
-      ? Array.from(new Set(list.map((r) => r["ร้านค้า"]).filter(Boolean))) as string[] 
+      ? Array.from(new Set(newRowsOnly.map((r) => r["ร้านค้า"]).filter(Boolean))) as string[] 
       : [];
     const vehiclesInCsv = type === "disbursements"
-      ? Array.from(new Set(list.map((r) => r["ทะเบียน"]).filter(Boolean))) as string[]
+      ? Array.from(new Set(newRowsOnly.map((r) => r["ทะเบียน"]).filter(Boolean))) as string[]
       : [];
 
     const existingTanks = db.tanks.map((t) => t["ชื่อคลัง/ถังเก็บ"].trim().toLowerCase());
@@ -239,14 +315,40 @@ export default function CsvImportModal({
     setMissingVehicles(missingV);
 
     setParsedRows(list);
+    setEmptyLinesCount(emptyCount);
+    setDuplicateCount(duplicateCountTemp);
     setPreviewActive(true);
   };
 
   const executeImport = () => {
     setImporting(true);
     setProgressPct(10);
-    const log: string[] = ["// เริ่มต้นประมวลผลข้อมูลนำเข้า...", `// ยอดนำเข้าทั้งหมด: ${parsedRows.length} รายการ`];
+    
+    const newRowsToImport = parsedRows.filter(row => !row.isDuplicate);
+    
+    const log: string[] = [
+      "// เริ่มต้นประมวลผลข้อมูลนำเข้า...", 
+      `// ยอดนำเข้าใหม่ที่ค้นพบ: ${newRowsToImport.length} รายการ`,
+      `// ยอดข้าม (รายการซ้ำที่มีอยู่แล้ว): ${duplicateCount} รายการ`
+    ];
     setProgressLog(log);
+
+    if (newRowsToImport.length === 0) {
+      log.push(`⚠️ ไม่พบรายการใหม่สำหรับการนำเข้า (ข้ามรายการซ้ำทั้งหมด)`);
+      setProgressLog([...log]);
+      setProgressPct(100);
+      setTimeout(() => {
+        setImporting(false);
+        showToast(
+          "ไม่มีข้อมูลใหม่เพื่อนำเข้า",
+          "รายการทั้งหมดในไฟล์มีอยู่แล้วในระบบ บันทึกซ้ำจึงถูกข้ามโดยอัตโนมัติ",
+          "success"
+        );
+        onClose();
+        resetState();
+      }, 1000);
+      return;
+    }
 
     const newTanks: Tank[] = [];
     const newProjects: Project[] = [];
@@ -258,7 +360,7 @@ export default function CsvImportModal({
       
       // Auto register missing Tanks/Stores
       missingTanks.forEach((tName) => {
-        const matchingRow = parsedRows.find(row => row["ชื่อสินค้า (คลัง)"] === tName);
+        const matchingRow = newRowsToImport.find(row => row["ชื่อสินค้า (คลัง)"] === tName);
         const unit = matchingRow ? matchingRow["หน่วยนับ"] || "ลิตร" : "ลิตร";
         const price = matchingRow ? parseFloat(matchingRow["ราคา"]) || 0 : 30.00;
         
@@ -306,7 +408,7 @@ export default function CsvImportModal({
 
       // Auto register missing Vehicles
       missingVehicles.forEach((vName) => {
-        const matchingRow = parsedRows.find(row => row["ทะเบียน"] === vName);
+        const matchingRow = newRowsToImport.find(row => row["ทะเบียน"] === vName);
         const driver = matchingRow ? matchingRow["ผู้เบิก/คนขับ"] || "ไม่ระบุพนักงานขับ" : "ไม่ระบุพนักงานขับ";
 
         const newVehicleId = `VEH-${String(db.vehicles.length + 1 + newVehicles.length).padStart(3, "0")}`;
@@ -335,12 +437,12 @@ export default function CsvImportModal({
         log.push(`⏳ ปรับเกณฑ์ดัชนีคงเหลือในระบบคลังพัสดุ...`);
         setProgressLog([...log]);
       } else if (step === 3) {
-        log.push(`🎉 [เสร็จสิ้น] นำเข้าประวัติพัสดุรวม ${parsedRows.length} รายการ เรียบร้อยสมบูรณ์!`);
+        log.push(`🎉 [เสร็จสิ้น] นำเข้าประวัติพัสดุรวม ${newRowsToImport.length} รายการ เรียบร้อยสมบูรณ์!`);
         setProgressLog([...log]);
         clearInterval(interval);
 
         setTimeout(() => {
-          onImportComplete(parsedRows, {
+          onImportComplete(newRowsToImport, {
             newTanks,
             newProjects,
             newMerchants,
@@ -348,7 +450,7 @@ export default function CsvImportModal({
           });
           showToast(
             "นำเข้าข้อมูลสำเร็จ",
-            `ระบบได้นำเข้ารายการ ${parsedRows.length} แถว และอัปเดตข้อมูลระบบหลัก ${newTanks.length + newProjects.length + newMerchants.length + newVehicles.length} รายการเรียบร้อยแล้ว`,
+            `ระบบได้นำเข้ารายการใหม่ ${newRowsToImport.length} แถว และอัปเดตข้อมูลระบบหลัก ${newTanks.length + newProjects.length + newMerchants.length + newVehicles.length} รายการเรียบร้อยแล้ว`,
             "success"
           );
           onClose();
@@ -472,15 +574,35 @@ export default function CsvImportModal({
                       </p>
                     </div>
                     <span className="bg-indigo-600 text-white text-[10px] font-black px-3 py-1 rounded-full">
-                      ตรวจพบ {parsedRows.length} รายการ
+                      ตรวจพบทั้งหมด {parsedRows.length + emptyLinesCount} แถว
                     </span>
+                  </div>
+
+                  {/* Stats Board */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl text-center shadow-sm">
+                      <p className="text-[10px] text-slate-500 font-extrabold">แถวทั้งหมดในไฟล์</p>
+                      <p className="text-sm font-black text-slate-800">{parsedRows.length + emptyLinesCount}</p>
+                    </div>
+                    <div className="bg-emerald-50 border border-emerald-100 p-3 rounded-xl text-center shadow-sm">
+                      <p className="text-[10px] text-emerald-600 font-extrabold">รายการใหม่ที่นำเข้าได้</p>
+                      <p className="text-sm font-black text-emerald-700">+{parsedRows.length - duplicateCount}</p>
+                    </div>
+                    <div className="bg-amber-50 border border-amber-100 p-3 rounded-xl text-center shadow-sm animate-pulse">
+                      <p className="text-[10px] text-amber-600 font-extrabold">รายการซ้ำ (ข้ามอัตโนมัติ)</p>
+                      <p className="text-sm font-black text-amber-700">{duplicateCount}</p>
+                    </div>
+                    <div className="bg-slate-100 border border-slate-200 p-3 rounded-xl text-center shadow-sm">
+                      <p className="text-[10px] text-slate-500 font-extrabold">บรรทัดว่างที่คัดออก</p>
+                      <p className="text-sm font-black text-slate-600">{emptyLinesCount}</p>
+                    </div>
                   </div>
 
                   {/* Master Data Registration Detection Section */}
                   {hasMissingMaster ? (
                     <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-3">
                       <div className="flex items-start space-x-2 text-amber-900">
-                        <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0 animate-bounce" />
+                        <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
                         <div>
                           <h4 className="text-xs font-black">ตรวจพบข้อมูลใหม่ที่ไม่มีในระบบระบบหลักหลัก (Missing Master Data Detected)</h4>
                           <p className="text-[10px] text-amber-700 mt-0.5 leading-relaxed font-bold">
@@ -523,7 +645,7 @@ export default function CsvImportModal({
                         className="flex items-center space-x-2 text-[11px] font-black text-amber-900 cursor-pointer select-none py-1 hover:text-amber-950 transition"
                       >
                         {autoRegisterMaster ? (
-                          <CheckSquare className="w-4.5 h-405 text-amber-600 fill-amber-100" />
+                          <CheckSquare className="w-4.5 h-4.5 text-amber-600 fill-amber-100" />
                         ) : (
                           <Square className="w-4.5 h-4.5 text-slate-350" />
                         )}
@@ -541,6 +663,9 @@ export default function CsvImportModal({
                     <table className="w-full text-left border-collapse text-[10px]">
                       <thead className="bg-slate-800 text-white font-black border-b sticky top-0">
                         <tr>
+                          <th className="py-2.5 px-3 border-r border-slate-700 whitespace-nowrap w-24">
+                            ผลตรวจสอบ
+                          </th>
                           {headersToShow.map((h) => (
                             <th key={h} className="py-2.5 px-3 border-r border-slate-700 whitespace-nowrap">
                               {h}
@@ -549,18 +674,37 @@ export default function CsvImportModal({
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 bg-white font-bold text-slate-700">
-                        {parsedRows.map((row, idx) => (
-                          <tr key={idx} className="hover:bg-slate-50 border-b">
-                            {headersToShow.map((h) => {
-                              const val = row[h];
-                              return (
-                                <td key={h} className="py-2 px-3 border-r border-slate-100 truncate max-w-[160px]">
-                                  {typeof val === "number" ? formatNumber(val, 2) : String(val || "-")}
-                                </td>
-                              );
-                            })}
-                          </tr>
-                        ))}
+                        {parsedRows.map((row, idx) => {
+                          const isDup = row.isDuplicate;
+                          return (
+                            <tr 
+                              key={idx} 
+                              className={`border-b transition ${
+                                isDup ? "bg-slate-50 text-slate-400 opacity-70" : "hover:bg-slate-50 bg-white text-slate-800"
+                              }`}
+                            >
+                              <td className="py-2 px-3 border-r border-slate-100 whitespace-nowrap">
+                                {isDup ? (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[9px] font-black bg-amber-50 border border-amber-250 text-amber-700">
+                                    ซ้ำ (ข้าม)
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[9px] font-black bg-emerald-50 border border-emerald-250 text-emerald-700">
+                                    รายการใหม่
+                                  </span>
+                                )}
+                              </td>
+                              {headersToShow.map((h) => {
+                                const val = row[h];
+                                return (
+                                  <td key={h} className="py-2 px-3 border-r border-slate-100 truncate max-w-[160px]">
+                                    {typeof val === "number" ? formatNumber(val, 2) : String(val || "-")}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
