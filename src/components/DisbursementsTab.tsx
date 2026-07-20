@@ -70,7 +70,15 @@ export default function DisbursementsTab({
       return matchSearch && matchProduct && matchProject;
     });
 
-    return list.sort((a, b) => new Date(b.วันที่).getTime() - new Date(a.วันที่).getTime());
+    // Sort by Date Descending, then ID Descending as fallback
+    return list.sort((a, b) => {
+      const timeA = new Date(a.วันที่ || 0).getTime();
+      const timeB = new Date(b.วันที่ || 0).getTime();
+      if (timeA !== timeB) {
+        return timeB - timeA;
+      }
+      return String(b.IDรายการ || "").localeCompare(String(a.IDรายการ || ""), undefined, { numeric: true, sensitivity: "base" });
+    });
   }, [disbursements, search, productFilter, projectFilter]);
 
   return (

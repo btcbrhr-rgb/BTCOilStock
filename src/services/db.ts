@@ -240,8 +240,31 @@ export async function fetchDatabaseFromSheets(url: string): Promise<Database> {
   const result = await response.json();
   if (result.status === "success" && result.data) {
     const sheetsDb = result.data;
+
+    // Filter out invalid/empty user entries from Sheets
+    if (sheetsDb.users && Array.isArray(sheetsDb.users)) {
+      sheetsDb.users = sheetsDb.users.filter(
+        (u: any) => u && u.Username && String(u.Username).trim() !== ""
+      );
+    }
+
     if (!sheetsDb.users || sheetsDb.users.length === 0) {
-      sheetsDb.users = DEFAULT_USERS;
+      sheetsDb.users = [...DEFAULT_USERS];
+    } else {
+      // Ensure "admin" with password "123" is always available
+      const hasAdmin = sheetsDb.users.some(
+        (u: any) => u && u.Username && String(u.Username).toLowerCase() === "admin"
+      );
+      if (!hasAdmin) {
+        sheetsDb.users.unshift(DEFAULT_USERS[0]);
+      } else {
+        const adminUser = sheetsDb.users.find(
+          (u: any) => u && u.Username && String(u.Username).toLowerCase() === "admin"
+        );
+        if (adminUser && (!adminUser.Password || String(adminUser.Password).trim() === "")) {
+          adminUser.Password = "123";
+        }
+      }
     }
     return sheetsDb;
   }

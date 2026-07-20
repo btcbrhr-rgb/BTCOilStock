@@ -27,8 +27,9 @@ export default function LoginWall({ users, onLoginSuccess }: LoginWallProps) {
     setTimeout(() => {
       const match = users.find(
         (u) =>
-          u.Username.toLowerCase() === username.trim().toLowerCase() &&
-          u.Password === password
+          u &&
+          String(u.Username || "").trim().toLowerCase() === username.trim().toLowerCase() &&
+          String(u.Password || "").trim() === String(password).trim()
       );
 
       if (match) {

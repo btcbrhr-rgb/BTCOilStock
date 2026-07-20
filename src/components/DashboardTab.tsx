@@ -766,7 +766,9 @@ export default function DashboardTab({
                       });
                     };
 
-                    const filteredTanksList = filterTanks(tanks);
+                    const filteredTanksList = filterTanks(tanks).sort((a, b) =>
+                      String(b.IDถัง || "").localeCompare(String(a.IDถัง || ""), undefined, { numeric: true, sensitivity: "base" })
+                    );
                     if (filteredTanksList.length === 0) {
                       return (
                         <tr>

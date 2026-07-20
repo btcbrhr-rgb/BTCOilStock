@@ -173,6 +173,18 @@ export default function CsvImportModal({
     let emptyCount = 0;
     let duplicateCountTemp = 0;
 
+    // Calculate maximum ID number of existing records to continue sequentially starting from 001
+    let maxIdNum = 0;
+    const existingList = type === "receipts" ? db.receipts : db.disbursements;
+    existingList.forEach((item) => {
+      const match = item.IDรายการ.match(/(\d+)$/);
+      if (match) {
+        const val = parseInt(match[1], 10);
+        if (val > maxIdNum) maxIdNum = val;
+      }
+    });
+    let nextSeq = maxIdNum + 1;
+
     for (let i = 1; i < lines.length; i++) {
       const line = lines[i];
       if (line.trim() === "") {
@@ -188,7 +200,6 @@ export default function CsvImportModal({
       }
 
       const obj: { [key: string]: any } = {
-        IDรายการ: `${prefix}-${year}-${String(100 + i).padStart(3, "0")}`,
         สถานะ: "รอตรวจสอบ"
       };
 
@@ -210,6 +221,9 @@ export default function CsvImportModal({
         emptyCount++;
         continue;
       }
+
+      // Assign sequential ID to valid record
+      obj.IDรายการ = `${prefix}-${year}-${String(nextSeq++).padStart(3, "0")}`;
 
       // Recalculate totals dynamically
       if (type === "receipts") {

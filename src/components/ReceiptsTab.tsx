@@ -61,8 +61,15 @@ export default function ReceiptsTab({
       return matchSearch && matchProduct && matchMerchant;
     });
 
-    // Sort by Date Descending
-    return list.sort((a, b) => new Date(b.วันที่รับเข้า).getTime() - new Date(a.วันที่รับเข้า).getTime());
+    // Sort by Date Descending, then ID Descending as fallback
+    return list.sort((a, b) => {
+      const timeA = new Date(a.วันที่รับเข้า || 0).getTime();
+      const timeB = new Date(b.วันที่รับเข้า || 0).getTime();
+      if (timeA !== timeB) {
+        return timeB - timeA;
+      }
+      return String(b.IDรายการ || "").localeCompare(String(a.IDรายการ || ""), undefined, { numeric: true, sensitivity: "base" });
+    });
   }, [receipts, search, productFilter, merchantFilter]);
 
   return (

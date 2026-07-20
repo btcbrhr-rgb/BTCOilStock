@@ -374,24 +374,27 @@ export default function MasterDataTab({
                       </td>
                     </tr>
                   ) : (
-                    tanks.map((t, idx) => (
-                      <tr key={t.IDถัง} className="hover:bg-slate-50/50">
-                        <td className="py-3 px-4 font-mono text-slate-500 font-bold">{t.IDถัง}</td>
-                        <td className="py-3 px-4 text-slate-900 font-black">{t["ชื่อคลัง/ถังเก็บ"]}</td>
-                        <td className="py-3 px-4">{t.ประเภทวัสดุ}</td>
-                        <td className="py-3 px-4 text-right font-mono">{formatNumber(t.ความจุสูงสุด, 0)}</td>
-                        <td className="py-3 px-4 text-right font-mono text-indigo-600 font-bold">{formatNumber(t.ปริมาณคงเหลือปัจจุบัน, 2)}</td>
-                        <td className="py-3 px-4 text-right font-mono text-rose-500">{formatNumber(t.เกณฑ์แจ้งเตือนต่ำวิกฤต, 0)}</td>
-                        <td className="py-3 px-4 text-right font-mono text-amber-600">{formatNumber(t.ราคาน้ำมันอ้างอิง, 2)} ฿</td>
-                        <td className="py-3 px-4">{t.หน่วยนับ}</td>
-                        {!isOperator && (
-                          <td className="py-3 px-4 text-center space-x-1.5 whitespace-nowrap">
-                            <button onClick={() => onEdit("tanks", idx)} className="text-indigo-600 hover:text-indigo-900 font-bold bg-indigo-50 px-2.5 py-1 rounded-lg transition cursor-pointer">แก้ไข</button>
-                            <button onClick={() => onDelete("tanks", idx)} className="text-rose-600 hover:text-rose-900 font-bold bg-rose-50 px-2.5 py-1 rounded-lg transition cursor-pointer">ลบ</button>
-                          </td>
-                        )}
-                      </tr>
-                    ))
+                    tanks
+                      .map((t, idx) => ({ ...t, origIdx: idx }))
+                      .sort((a, b) => String(b.IDถัง || "").localeCompare(String(a.IDถัง || ""), undefined, { numeric: true, sensitivity: "base" }))
+                      .map((t) => (
+                        <tr key={t.IDถัง} className="hover:bg-slate-50/50">
+                          <td className="py-3 px-4 font-mono text-slate-500 font-bold">{t.IDถัง}</td>
+                          <td className="py-3 px-4 text-slate-900 font-black">{t["ชื่อคลัง/ถังเก็บ"]}</td>
+                          <td className="py-3 px-4">{t.ประเภทวัสดุ}</td>
+                          <td className="py-3 px-4 text-right font-mono">{formatNumber(t.ความจุสูงสุด, 0)}</td>
+                          <td className="py-3 px-4 text-right font-mono text-indigo-600 font-bold">{formatNumber(t.ปริมาณคงเหลือปัจจุบัน, 2)}</td>
+                          <td className="py-3 px-4 text-right font-mono text-rose-500">{formatNumber(t.เกณฑ์แจ้งเตือนต่ำวิกฤต, 0)}</td>
+                          <td className="py-3 px-4 text-right font-mono text-amber-600">{formatNumber(t.ราคาน้ำมันอ้างอิง, 2)} ฿</td>
+                          <td className="py-3 px-4">{t.หน่วยนับ}</td>
+                          {!isOperator && (
+                            <td className="py-3 px-4 text-center space-x-1.5 whitespace-nowrap">
+                              <button onClick={() => onEdit("tanks", t.origIdx)} className="text-indigo-600 hover:text-indigo-900 font-bold bg-indigo-50 px-2.5 py-1 rounded-lg transition cursor-pointer">แก้ไข</button>
+                              <button onClick={() => onDelete("tanks", t.origIdx)} className="text-rose-600 hover:text-rose-900 font-bold bg-rose-50 px-2.5 py-1 rounded-lg transition cursor-pointer">ลบ</button>
+                            </td>
+                          )}
+                        </tr>
+                      ))
                   )}
                 </tbody>
               </table>
@@ -417,19 +420,22 @@ export default function MasterDataTab({
                       </td>
                     </tr>
                   ) : (
-                    vehicles.map((v, idx) => (
-                      <tr key={v.IDรถ} className="hover:bg-slate-50/50">
-                        <td className="py-3 px-4 font-mono text-slate-500 font-bold">{v.IDรถ}</td>
-                        <td className="py-3 px-4 text-slate-900 font-bold">{v["ทะเบียน/รหัสเครื่องจักร"]}</td>
-                        <td className="py-3 px-4">{v.พนักงานขับรถประจำคัน || "-"}</td>
-                        {!isOperator && (
-                          <td className="py-3 px-4 text-center space-x-1.5 whitespace-nowrap">
-                            <button onClick={() => onEdit("vehicles", idx)} className="text-indigo-600 hover:text-indigo-900 font-bold bg-indigo-50 px-2.5 py-1 rounded-lg transition cursor-pointer">แก้ไข</button>
-                            <button onClick={() => onDelete("vehicles", idx)} className="text-rose-600 hover:text-rose-900 font-bold bg-rose-50 px-2.5 py-1 rounded-lg transition cursor-pointer">ลบ</button>
-                          </td>
-                        )}
-                      </tr>
-                    ))
+                    vehicles
+                      .map((v, idx) => ({ ...v, origIdx: idx }))
+                      .sort((a, b) => String(b.IDรถ || "").localeCompare(String(a.IDรถ || ""), undefined, { numeric: true, sensitivity: "base" }))
+                      .map((v) => (
+                        <tr key={v.IDรถ} className="hover:bg-slate-50/50">
+                          <td className="py-3 px-4 font-mono text-slate-500 font-bold">{v.IDรถ}</td>
+                          <td className="py-3 px-4 text-slate-900 font-bold">{v["ทะเบียน/รหัสเครื่องจักร"]}</td>
+                          <td className="py-3 px-4">{v.พนักงานขับรถประจำคัน || "-"}</td>
+                          {!isOperator && (
+                            <td className="py-3 px-4 text-center space-x-1.5 whitespace-nowrap">
+                              <button onClick={() => onEdit("vehicles", v.origIdx)} className="text-indigo-600 hover:text-indigo-900 font-bold bg-indigo-50 px-2.5 py-1 rounded-lg transition cursor-pointer">แก้ไข</button>
+                              <button onClick={() => onDelete("vehicles", v.origIdx)} className="text-rose-600 hover:text-rose-900 font-bold bg-rose-50 px-2.5 py-1 rounded-lg transition cursor-pointer">ลบ</button>
+                            </td>
+                          )}
+                        </tr>
+                      ))
                   )}
                 </tbody>
               </table>
@@ -454,18 +460,21 @@ export default function MasterDataTab({
                       </td>
                     </tr>
                   ) : (
-                    projects.map((p, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50/50">
-                        <td className="py-3 px-4 font-mono text-slate-500 font-bold">#{idx + 1}</td>
-                        <td className="py-3 px-4 text-slate-900 font-bold">{p["ชื่อโครงการ/ไซต์งาน"]}</td>
-                        {!isOperator && (
-                          <td className="py-3 px-4 text-center space-x-1.5 whitespace-nowrap">
-                            <button onClick={() => onEdit("projects", idx)} className="text-indigo-600 hover:text-indigo-900 font-bold bg-indigo-50 px-2.5 py-1 rounded-lg transition cursor-pointer">แก้ไข</button>
-                            <button onClick={() => onDelete("projects", idx)} className="text-rose-600 hover:text-rose-900 font-bold bg-rose-50 px-2.5 py-1 rounded-lg transition cursor-pointer">ลบ</button>
-                          </td>
-                        )}
-                      </tr>
-                    ))
+                    projects
+                      .map((p, idx) => ({ ...p, origIdx: idx }))
+                      .sort((a, b) => b.origIdx - a.origIdx)
+                      .map((p) => (
+                        <tr key={p.origIdx} className="hover:bg-slate-50/50">
+                          <td className="py-3 px-4 font-mono text-slate-500 font-bold">#{p.origIdx + 1}</td>
+                          <td className="py-3 px-4 text-slate-900 font-bold">{p["ชื่อโครงการ/ไซต์งาน"]}</td>
+                          {!isOperator && (
+                            <td className="py-3 px-4 text-center space-x-1.5 whitespace-nowrap">
+                              <button onClick={() => onEdit("projects", p.origIdx)} className="text-indigo-600 hover:text-indigo-900 font-bold bg-indigo-50 px-2.5 py-1 rounded-lg transition cursor-pointer">แก้ไข</button>
+                              <button onClick={() => onDelete("projects", p.origIdx)} className="text-rose-600 hover:text-rose-900 font-bold bg-rose-50 px-2.5 py-1 rounded-lg transition cursor-pointer">ลบ</button>
+                            </td>
+                          )}
+                        </tr>
+                      ))
                   )}
                 </tbody>
               </table>
@@ -490,18 +499,21 @@ export default function MasterDataTab({
                       </td>
                     </tr>
                   ) : (
-                    merchants.map((m, idx) => (
-                      <tr key={m.IDผู้ค้า} className="hover:bg-slate-50/50">
-                        <td className="py-3 px-4 font-mono text-slate-500 font-bold">{m.IDผู้ค้า}</td>
-                        <td className="py-3 px-4 text-slate-900 font-bold">{m["ชื่อร้านค้า/ผู้ให้บริการ"]}</td>
-                        {!isOperator && (
-                          <td className="py-3 px-4 text-center space-x-1.5 whitespace-nowrap">
-                            <button onClick={() => onEdit("merchants", idx)} className="text-indigo-600 hover:text-indigo-900 font-bold bg-indigo-50 px-2.5 py-1 rounded-lg transition cursor-pointer">แก้ไข</button>
-                            <button onClick={() => onDelete("merchants", idx)} className="text-rose-600 hover:text-rose-900 font-bold bg-rose-50 px-2.5 py-1 rounded-lg transition cursor-pointer">ลบ</button>
-                          </td>
-                        )}
-                      </tr>
-                    ))
+                    merchants
+                      .map((m, idx) => ({ ...m, origIdx: idx }))
+                      .sort((a, b) => String(b.IDผู้ค้า || "").localeCompare(String(a.IDผู้ค้า || ""), undefined, { numeric: true, sensitivity: "base" }))
+                      .map((m) => (
+                        <tr key={m.IDผู้ค้า} className="hover:bg-slate-50/50">
+                          <td className="py-3 px-4 font-mono text-slate-500 font-bold">{m.IDผู้ค้า}</td>
+                          <td className="py-3 px-4 text-slate-900 font-bold">{m["ชื่อร้านค้า/ผู้ให้บริการ"]}</td>
+                          {!isOperator && (
+                            <td className="py-3 px-4 text-center space-x-1.5 whitespace-nowrap">
+                              <button onClick={() => onEdit("merchants", m.origIdx)} className="text-indigo-600 hover:text-indigo-900 font-bold bg-indigo-50 px-2.5 py-1 rounded-lg transition cursor-pointer">แก้ไข</button>
+                              <button onClick={() => onDelete("merchants", m.origIdx)} className="text-rose-600 hover:text-rose-900 font-bold bg-rose-50 px-2.5 py-1 rounded-lg transition cursor-pointer">ลบ</button>
+                            </td>
+                          )}
+                        </tr>
+                      ))
                   )}
                 </tbody>
               </table>
@@ -520,31 +532,34 @@ export default function MasterDataTab({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
-                  {users.map((u, idx) => (
-                    <tr key={u.Username} className="hover:bg-slate-50/50">
-                      <td className="py-3 px-4 font-mono font-bold text-slate-800">{u.Username}</td>
-                      <td className="py-3 px-4 text-slate-900 font-black">{u.Name}</td>
-                      <td className="py-3 px-4">
-                        <span
-                          className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold ${
-                            u.Role === "ผู้ดูแลระบบสูงสุด"
-                              ? "bg-rose-50 text-rose-700 border border-rose-100"
-                              : u.Role === "ผู้ตรวจสอบ"
-                              ? "bg-indigo-50 text-indigo-700 border border-indigo-100"
-                              : "bg-slate-100 text-slate-700 border"
-                          }`}
-                        >
-                          {u.Role}
-                        </span>
-                      </td>
-                      {!isOperator && (
-                        <td className="py-3 px-4 text-center space-x-1.5 whitespace-nowrap">
-                          <button onClick={() => onEdit("users", idx)} className="text-indigo-600 hover:text-indigo-900 font-bold bg-indigo-50 px-2.5 py-1 rounded-lg transition cursor-pointer">แก้ไข</button>
-                          <button onClick={() => onDelete("users", idx)} className="text-rose-600 hover:text-rose-900 font-bold bg-rose-50 px-2.5 py-1 rounded-lg transition cursor-pointer">ลบ</button>
+                  {users
+                    .map((u, idx) => ({ ...u, origIdx: idx }))
+                    .sort((a, b) => b.origIdx - a.origIdx)
+                    .map((u) => (
+                      <tr key={u.Username} className="hover:bg-slate-50/50">
+                        <td className="py-3 px-4 font-mono font-bold text-slate-800">{u.Username}</td>
+                        <td className="py-3 px-4 text-slate-900 font-black">{u.Name}</td>
+                        <td className="py-3 px-4">
+                          <span
+                            className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold ${
+                              u.Role === "ผู้ดูแลระบบสูงสุด"
+                                ? "bg-rose-50 text-rose-700 border border-rose-100"
+                                : u.Role === "ผู้ตรวจสอบ"
+                                ? "bg-indigo-50 text-indigo-700 border border-indigo-100"
+                                : "bg-slate-100 text-slate-700 border"
+                            }`}
+                          >
+                            {u.Role}
+                          </span>
                         </td>
-                      )}
-                    </tr>
-                  ))}
+                        {!isOperator && (
+                          <td className="py-3 px-4 text-center space-x-1.5 whitespace-nowrap">
+                            <button onClick={() => onEdit("users", u.origIdx)} className="text-indigo-600 hover:text-indigo-900 font-bold bg-indigo-50 px-2.5 py-1 rounded-lg transition cursor-pointer">แก้ไข</button>
+                            <button onClick={() => onDelete("users", u.origIdx)} className="text-rose-600 hover:text-rose-900 font-bold bg-rose-50 px-2.5 py-1 rounded-lg transition cursor-pointer">ลบ</button>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
                 </tbody>
               </table>
             </div>
