@@ -30,6 +30,7 @@ interface MasterDataTabProps {
   users: User[];
   currentUser: User | null;
   sheetsUrl: string;
+  isSheetsVerified: boolean | null;
   isSheetsLoading: boolean;
   onSaveSheetsUrl: (url: string) => void;
   onTestSheetsConnection: (url: string) => Promise<boolean>;
@@ -65,12 +66,10 @@ function doGet(e) {
   try {
     var db = loadDatabase();
     return ContentService.createTextOutput(JSON.stringify({ status: "success", data: db }))
-      .setMimeType(ContentService.MimeType.JSON)
-      .setHeader("Access-Control-Allow-Origin", "*");
+      .setMimeType(ContentService.MimeType.JSON);
   } catch (error) {
     return ContentService.createTextOutput(JSON.stringify({ status: "error", message: error.toString() }))
-      .setMimeType(ContentService.MimeType.JSON)
-      .setHeader("Access-Control-Allow-Origin", "*");
+      .setMimeType(ContentService.MimeType.JSON);
   }
 }
 
@@ -81,24 +80,20 @@ function doPost(e) {
     
     if (action === "test") {
       return ContentService.createTextOutput(JSON.stringify({ status: "success", message: "เชื่อมต่อสำเร็จ!" }))
-        .setMimeType(ContentService.MimeType.JSON)
-        .setHeader("Access-Control-Allow-Origin", "*");
+        .setMimeType(ContentService.MimeType.JSON);
     }
     
     if (action === "sync") {
       saveDatabase(postData.db);
       return ContentService.createTextOutput(JSON.stringify({ status: "success", message: "ซิงค์ข้อมูลสำเร็จ!" }))
-        .setMimeType(ContentService.MimeType.JSON)
-        .setHeader("Access-Control-Allow-Origin", "*");
+        .setMimeType(ContentService.MimeType.JSON);
     }
     
     return ContentService.createTextOutput(JSON.stringify({ status: "error", message: "ไม่พบ Action ที่ระบุ" }))
-      .setMimeType(ContentService.MimeType.JSON)
-      .setHeader("Access-Control-Allow-Origin", "*");
+      .setMimeType(ContentService.MimeType.JSON);
   } catch (error) {
     return ContentService.createTextOutput(JSON.stringify({ status: "error", message: error.toString() }))
-      .setMimeType(ContentService.MimeType.JSON)
-      .setHeader("Access-Control-Allow-Origin", "*");
+      .setMimeType(ContentService.MimeType.JSON);
   }
 }
 
@@ -192,6 +187,7 @@ export default function MasterDataTab({
   users,
   currentUser,
   sheetsUrl,
+  isSheetsVerified,
   isSheetsLoading,
   onSaveSheetsUrl,
   onTestSheetsConnection,
@@ -256,10 +252,17 @@ export default function MasterDataTab({
           </p>
         </div>
         {sheetsUrl && (
-          <span className="inline-flex items-center px-3 py-1.5 rounded-full text-[10px] font-black bg-indigo-50 border border-indigo-150 text-indigo-700">
-            <Cloud className="w-3.5 h-3.5 mr-1.5" />
-            เชื่อมต่อ Google Sheets คลาวด์เรียบร้อย
-          </span>
+          isSheetsVerified ? (
+            <span className="inline-flex items-center px-3 py-1.5 rounded-full text-[10px] font-black bg-emerald-50 border border-emerald-150 text-emerald-700 animate-pulse animate-duration-1000">
+              <Cloud className="w-3.5 h-3.5 mr-1.5 text-emerald-600 animate-bounce" />
+              เชื่อมต่อ Google Sheets คลาวด์เรียบร้อย
+            </span>
+          ) : (
+            <span className="inline-flex items-center px-3 py-1.5 rounded-full text-[10px] font-black bg-rose-50 border border-rose-150 text-rose-700 animate-pulse">
+              <AlertCircle className="w-3.5 h-3.5 mr-1.5 text-rose-600" />
+              เชื่อมต่อล้มเหลว (ตรวจเช็คสิทธิ์)
+            </span>
+          )
         )}
       </div>
 
@@ -600,18 +603,36 @@ export default function MasterDataTab({
                 {/* Test success/fail visual card */}
                 {testSuccess !== null && (
                   <div
-                    className={`p-3 rounded-xl border text-xs font-bold flex items-center space-x-2 animate-in slide-in-from-top-2 duration-200 ${
+                    className={`p-3 rounded-xl border text-xs font-bold flex flex-col space-y-2 animate-in slide-in-from-top-2 duration-200 ${
                       testSuccess
                         ? "bg-green-50 border-green-150 text-green-700"
                         : "bg-rose-50 border-rose-150 text-rose-700"
                     }`}
                   >
-                    <AlertCircle className="w-4 h-4" />
-                    <span>
-                      {testSuccess
-                        ? "✓ การเชื่อมต่อสำเร็จแล้ว! แอปพลิเคชันตอบรับการอ่านเขียนสเปรดชีตอย่างสมบูรณ์แบบ"
-                        : "✗ การเชื่อมต่อล้มเหลว! สคริปต์ไม่ตอบรับ โปรดตรวจสอบความถูกต้องของ URL และการตั้งค่าสิทธิ์ให้เข้าถึงได้เป็น 'Everyone'"}
-                    </span>
+                    <div className="flex items-center space-x-2">
+                      <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                      <span>
+                        {testSuccess
+                          ? "✓ การเชื่อมต่อสำเร็จแล้ว! แอปพลิเคชันตอบรับการอ่านเขียนสเปรดชีตอย่างสมบูรณ์แบบ"
+                          : "✗ การเชื่อมต่อล้มเหลว! สคริปต์ไม่ตอบรับ โปรดตรวจสอบความถูกต้องของ URL และการตั้งค่าสิทธิ์ให้เข้าถึงได้เป็น 'Everyone'"}
+                      </span>
+                    </div>
+                    {!testSuccess && (
+                      <div className="mt-2 pl-6 text-[11px] font-semibold text-rose-600 space-y-1 bg-white/60 p-3 rounded-lg border border-rose-100">
+                        <p className="font-bold text-slate-800">💡 วิธีการแก้ไขปัญหาการซิงค์ล้มเหลว:</p>
+                        <ul className="list-decimal pl-4 space-y-1 leading-relaxed">
+                          <li>
+                            <strong className="text-slate-800">เปลี่ยนผู้มีสิทธิ์เข้าถึง (Who has access):</strong> ขณะกด <strong className="text-rose-700">Deploy (ทำให้ใช้งานได้)</strong> ในหน้า Google Apps Script ต้องตั้งค่าหัวข้อ <strong className="text-rose-700">"ผู้มีสิทธิ์เข้าถึง" (Who has access)</strong> ให้เป็น <strong className="text-rose-700">"ทุกคน" (Anyone)</strong> เท่านั้น (หากเลือกเป็น "Only myself" ระบบจะไม่สามารถส่งข้อมูลข้ามสิทธิ์ได้)
+                          </li>
+                          <li>
+                            <strong className="text-slate-800">ยืนยันสิทธิ์เข้าถึงบัญชี (Authorize Access):</strong> ก่อนสิ้นสุดการ Deploy อย่าลืมกดปุ่ม <strong className="text-slate-800">"อนุมัติสิทธิ์การเข้าถึง" (Authorize Access)</strong> และเลือกบัญชี Google ของคุณเพื่อกดยอมรับสิทธิ์ใช้งานสเปรดชีต
+                          </li>
+                          <li>
+                            <strong className="text-slate-800">การสร้างเวอร์ชันใหม่ (New deployment):</strong> หากคุณมีการปรับเปลี่ยนแก้ไขโค้ดสคริปต์ในอนาคต ต้องไปที่ <strong className="text-slate-800">Deploy &gt; Manage deployments</strong> แล้วคลิกรูป <strong className="text-indigo-600">ดินสอ</strong> เพื่อแก้ไข จากนั้นเลือก Version เป็น <strong className="text-indigo-600">"เวอร์ชันใหม่" (New version)</strong> เสมอ แล้วกด Deploy เพื่อให้การแก้ไขมีผลจริง
+                          </li>
+                        </ul>
+                      </div>
+                    )}
                   </div>
                 )}
 

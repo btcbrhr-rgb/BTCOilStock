@@ -52,6 +52,7 @@ export default function App() {
 
   // Sheets States
   const [sheetsUrl, setSheetsUrl] = useState(() => getSheetsUrl());
+  const [isSheetsVerified, setIsSheetsVerified] = useState<boolean | null>(null);
   const [isSheetsLoading, setIsSheetsLoading] = useState(false);
 
   // Auto-sync wrapper
@@ -61,10 +62,12 @@ export default function App() {
     if (sheetsUrl) {
       syncDatabaseToSheets(sheetsUrl, updatedDb)
         .then(() => {
+          setIsSheetsVerified(true);
           console.log("Auto-synced to Sheets successfully");
         })
         .catch((err) => {
           console.error("Auto-sync failed:", err);
+          setIsSheetsVerified(false);
           triggerToast(
             "บันทึกข้อมูลล้มเหลว",
             "ไม่สามารถอัปเดตข้อมูลลง Google Sheets ได้โดยตรง (กรุณาเช็คอินเทอร์เน็ตหรือสิทธิ์ของสคริปต์)",
@@ -88,6 +91,7 @@ export default function App() {
       fetchDatabaseFromSheets(url)
         .then((sheetsDb) => {
           setDb(sheetsDb);
+          setIsSheetsVerified(true);
           triggerToast(
             "โหลดข้อมูลคลาวด์สำเร็จ",
             "ดึงข้อมูลล่าสุดจาก Google Sheets โดยตรงสำเร็จ!",
@@ -96,6 +100,7 @@ export default function App() {
         })
         .catch((err) => {
           console.error("Startup Sheets fetch failed:", err);
+          setIsSheetsVerified(false);
           triggerToast(
             "โหลดข้อมูลไม่สำเร็จ",
             "ไม่สามารถดึงข้อมูลจาก Google Sheets ได้โดยตรง (กรุณาตรวจสอบลิงก์เชื่อมต่อหรือตั้งค่าใหม่)",
@@ -112,6 +117,11 @@ export default function App() {
   const handleSaveSheetsUrl = (url: string) => {
     saveSheetsUrl(url);
     setSheetsUrl(url);
+    if (!url) {
+      setIsSheetsVerified(null);
+    } else {
+      setIsSheetsVerified(false); // Reset to unverified until tested
+    }
     triggerToast("บันทึกที่อยู่สำเร็จ", "บันทึก URL เว็บแอป Google Sheets เรียบร้อยแล้ว", "success");
   };
 
@@ -120,13 +130,16 @@ export default function App() {
     try {
       const isOk = await testSheetsConnection(url);
       if (isOk) {
+        setIsSheetsVerified(true);
         triggerToast("เชื่อมต่อสำเร็จ!", "สเปรดชีตตอบรับการเชื่อมต่ออย่างถูกต้อง", "success");
         return true;
       } else {
+        setIsSheetsVerified(false);
         triggerToast("เชื่อมต่อล้มเหลว", "เว็บแอปไม่ตอบกลับ โปรดตรวจสอบสิทธิ์เข้าถึงสเปรดชีต (Everyone)", "error");
         return false;
       }
     } catch (err) {
+      setIsSheetsVerified(false);
       triggerToast("เชื่อมต่อล้มเหลว", "ไม่สามารถติดต่อสเปรดชีตได้ โปรดตรวจสอบลิงก์ URL อีกครั้ง", "error");
       return false;
     } finally {
@@ -142,9 +155,11 @@ export default function App() {
     setIsSheetsLoading(true);
     try {
       await syncDatabaseToSheets(sheetsUrl, db);
+      setIsSheetsVerified(true);
       triggerToast("ซิงค์คลาวด์สำเร็จ!", "ส่งออกฐานข้อมูลปัจจุบันไปยัง Google Sheets เรียบร้อยแล้ว", "success");
     } catch (err) {
       console.error(err);
+      setIsSheetsVerified(false);
       triggerToast("ซิงค์ล้มเหลว", "ไม่สามารถส่งข้อมูลขึ้นสเปรดชีตได้ โปรดตรวจสอบสิทธิ์เข้าถึงหรือลิงก์", "error");
     } finally {
       setIsSheetsLoading(false);
@@ -160,9 +175,11 @@ export default function App() {
     try {
       const sheetsDb = await fetchDatabaseFromSheets(sheetsUrl);
       setDb(sheetsDb);
+      setIsSheetsVerified(true);
       triggerToast("ดึงข้อมูลสำเร็จ!", "อัปเดตข้อมูลตรงจาก Google Sheets สำเร็จเรียบร้อย", "success");
     } catch (err) {
       console.error(err);
+      setIsSheetsVerified(false);
       triggerToast("ดึงข้อมูลล้มเหลว", "ไม่สามารถนำข้อมูลลงมาจากสเปรดชีตได้ โปรดตรวจสอบลิงก์", "error");
     } finally {
       setIsSheetsLoading(false);
@@ -846,15 +863,20 @@ export default function App() {
 
             {/* Session Info */}
             <div className="flex items-center space-x-3">
-              {sheetsUrl ? (
+              {!sheetsUrl ? (
+                <div className="hidden sm:flex items-center space-x-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold bg-amber-50 border border-amber-200 text-amber-700">
+                  <span className="w-1.5 h-1.5 bg-amber-500 rounded-full"></span>
+                  <span>ยังไม่ได้เชื่อมต่อ Google Sheets</span>
+                </div>
+              ) : isSheetsVerified ? (
                 <div className="hidden sm:flex items-center space-x-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold bg-emerald-50 border border-emerald-150 text-emerald-700 animate-pulse">
                   <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping"></span>
                   <span>เชื่อมต่อ Google Sheets แล้ว (LIVE)</span>
                 </div>
               ) : (
-                <div className="hidden sm:flex items-center space-x-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold bg-amber-50 border border-amber-200 text-amber-700">
-                  <span className="w-1.5 h-1.5 bg-amber-500 rounded-full"></span>
-                  <span>ยังไม่ได้เชื่อมต่อ Google Sheets</span>
+                <div className="hidden sm:flex items-center space-x-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold bg-rose-50 border border-rose-250 text-rose-700 animate-pulse">
+                  <span className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-ping"></span>
+                  <span>ซิงค์ล้มเหลว (ตรวจเช็คสิทธิ์/สคริปต์)</span>
                 </div>
               )}
 
@@ -1019,6 +1041,7 @@ export default function App() {
             users={db.users}
             currentUser={currentUser}
             sheetsUrl={sheetsUrl}
+            isSheetsVerified={isSheetsVerified}
             isSheetsLoading={isSheetsLoading}
             onSaveSheetsUrl={handleSaveSheetsUrl}
             onTestSheetsConnection={handleTestSheetsConnection}
