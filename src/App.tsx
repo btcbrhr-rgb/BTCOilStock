@@ -90,13 +90,22 @@ export default function App() {
       setIsSheetsLoading(true);
       fetchDatabaseFromSheets(url)
         .then((sheetsDb) => {
-          setDb(sheetsDb);
-          setIsSheetsVerified(true);
-          triggerToast(
-            "โหลดข้อมูลคลาวด์สำเร็จ",
-            "ดึงข้อมูลล่าสุดจาก Google Sheets โดยตรงสำเร็จ!",
-            "success"
-          );
+          const isEmptySheets = (!sheetsDb.tanks || sheetsDb.tanks.length === 0) &&
+                               (!sheetsDb.receipts || sheetsDb.receipts.length === 0) &&
+                               (!sheetsDb.disbursements || sheetsDb.disbursements.length === 0);
+          
+          if (isEmptySheets) {
+            console.log("Fetched sheets DB is empty. Keeping default mock data so user can sync it.");
+            setIsSheetsVerified(true);
+          } else {
+            setDb(sheetsDb);
+            setIsSheetsVerified(true);
+            triggerToast(
+              "โหลดข้อมูลคลาวด์สำเร็จ",
+              "ดึงข้อมูลล่าสุดจาก Google Sheets โดยตรงสำเร็จ!",
+              "success"
+            );
+          }
         })
         .catch((err) => {
           console.error("Startup Sheets fetch failed:", err);
@@ -174,6 +183,36 @@ export default function App() {
     setIsSheetsLoading(true);
     try {
       const sheetsDb = await fetchDatabaseFromSheets(sheetsUrl);
+      
+      const isEmptySheets = (!sheetsDb.tanks || sheetsDb.tanks.length === 0) &&
+                           (!sheetsDb.receipts || sheetsDb.receipts.length === 0) &&
+                           (!sheetsDb.disbursements || sheetsDb.disbursements.length === 0);
+
+      if (isEmptySheets && db.tanks.length > 0) {
+        setConfirm({
+          show: true,
+          title: "สเปรดชีตบนคลาวด์ยังไม่มีข้อมูล",
+          message: "ระบบดึงข้อมูลสำเร็จ แต่พบว่าไม่มีข้อมูลใน Google Sheets เลย หากดำเนินการดึง ข้อมูลตัวอย่างหน้าจอของคุณจะกลายเป็นค่าว่างทั้งหมด คุณต้องการให้ส่งออก/ซิงค์ข้อมูลปัจจุบันขึ้นไปตั้งต้นบน Google Sheets แทนหรือไม่?",
+          isWarning: true,
+          onOk: async () => {
+            setConfirm(prev => ({ ...prev, show: false }));
+            setIsSheetsLoading(true);
+            try {
+              await syncDatabaseToSheets(sheetsUrl, db);
+              setIsSheetsVerified(true);
+              triggerToast("ซิงค์คลาวด์สำเร็จ!", "อัปโหลดข้อมูลจำลองปัจจุบันขึ้นไปบันทึกบน Google Sheets ของคุณเรียบร้อยแล้ว", "success");
+            } catch (syncErr) {
+              console.error(syncErr);
+              triggerToast("ซิงค์ล้มเหลว", "ไม่สามารถส่งข้อมูลขึ้นสเปรดชีตได้ โปรดตรวจสอบสิทธิ์เข้าถึงหรือลิงก์", "error");
+            } finally {
+              setIsSheetsLoading(false);
+            }
+          }
+        });
+        setIsSheetsVerified(true);
+        return;
+      }
+
       setDb(sheetsDb);
       setIsSheetsVerified(true);
       triggerToast("ดึงข้อมูลสำเร็จ!", "อัปเดตข้อมูลตรงจาก Google Sheets สำเร็จเรียบร้อย", "success");

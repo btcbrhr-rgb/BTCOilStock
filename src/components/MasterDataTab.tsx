@@ -566,38 +566,43 @@ export default function MasterDataTab({
                 </div>
 
                 {/* Input block */}
-                <div className="flex flex-col md:flex-row items-stretch gap-2.5">
-                  <div className="flex-1 relative">
-                    <input
-                      type="text"
-                      className="w-full text-xs font-semibold px-4 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white shadow-inner font-mono text-slate-700 pr-10"
-                      placeholder="https://script.google.com/macros/s/AKfycb.../exec"
-                      value={inputUrl}
-                      onChange={(e) => setInputUrl(e.target.value)}
-                    />
-                    {isSheetsLoading && (
-                      <div className="absolute right-3 top-3.5">
-                        <Loader2 className="w-4 h-4 text-indigo-600 animate-spin" />
-                      </div>
-                    )}
+                <div className="space-y-1">
+                  <div className="flex flex-col md:flex-row items-stretch gap-2.5">
+                    <div className="flex-1 relative">
+                      <input
+                        type="text"
+                        className="w-full text-xs font-semibold px-4 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white shadow-inner font-mono text-slate-700 pr-10"
+                        placeholder="https://script.google.com/macros/s/AKfycb.../exec"
+                        value={inputUrl}
+                        onChange={(e) => setInputUrl(e.target.value)}
+                      />
+                      {isSheetsLoading && (
+                        <div className="absolute right-3 top-3.5">
+                          <Loader2 className="w-4 h-4 text-indigo-600 animate-spin" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 whitespace-nowrap">
+                      <button
+                        onClick={handleSaveUrl}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold px-4 py-2.5 rounded-xl text-xs transition cursor-pointer flex items-center space-x-1.5 shadow-sm"
+                      >
+                        <Check className="w-4 h-4" />
+                        <span>บันทึกที่อยู่ URL</span>
+                      </button>
+                      <button
+                        onClick={handleTestConnection}
+                        disabled={isSheetsLoading || !inputUrl}
+                        className="bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-extrabold px-4 py-2.5 rounded-xl text-xs transition cursor-pointer flex items-center space-x-1.5 shadow-sm disabled:opacity-50"
+                      >
+                        <RefreshCw className={`w-4 h-4 ${isSheetsLoading ? "animate-spin" : ""}`} />
+                        <span>ทดสอบการเชื่อมต่อสเปรดชีต</span>
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 whitespace-nowrap">
-                    <button
-                      onClick={handleSaveUrl}
-                      className="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold px-4 py-2.5 rounded-xl text-xs transition cursor-pointer flex items-center space-x-1.5 shadow-sm"
-                    >
-                      <Check className="w-4 h-4" />
-                      <span>บันทึกที่อยู่ URL</span>
-                    </button>
-                    <button
-                      onClick={handleTestConnection}
-                      disabled={isSheetsLoading || !inputUrl}
-                      className="bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-extrabold px-4 py-2.5 rounded-xl text-xs transition cursor-pointer flex items-center space-x-1.5 shadow-sm disabled:opacity-50"
-                    >
-                      <RefreshCw className={`w-4 h-4 ${isSheetsLoading ? "animate-spin" : ""}`} />
-                      <span>ทดสอบการเชื่อมต่อสเปรดชีต</span>
-                    </button>
-                  </div>
+                  <p className="text-[10px] text-rose-600 font-bold">
+                    ⚠️ ต้องเป็นลิงก์ Web App ที่ลงท้ายด้วย <span className="underline font-black">/exec</span> เท่านั้น (ห้ามใส่ลิงก์สเปรดชีตปกติ หรือลิงก์ที่ลงท้ายด้วย /dev)
+                  </p>
                 </div>
 
                 {/* Test success/fail visual card */}
@@ -619,8 +624,14 @@ export default function MasterDataTab({
                     </div>
                     {!testSuccess && (
                       <div className="mt-2 pl-6 text-[11px] font-semibold text-rose-600 space-y-1 bg-white/60 p-3 rounded-lg border border-rose-100">
-                        <p className="font-bold text-slate-800">💡 วิธีการแก้ไขปัญหาการซิงค์ล้มเหลว:</p>
+                        <p className="font-bold text-slate-800">💡 วิธีการแก้ไขปัญหาการซิงค์ล้มเหลว / ปัญหา CORS Policy:</p>
                         <ul className="list-decimal pl-4 space-y-1 leading-relaxed">
+                          <li>
+                            <strong className="text-slate-800">ตรวจสอบประเภทลิงก์ URL (สำคัญมาก!):</strong> ต้องมั่นใจว่านำลิงก์ <strong className="text-rose-700">"URL ของเว็บแอป" (Web App URL)</strong> มาใส่เท่านั้น! <strong className="text-rose-600 underline">ห้าม</strong> นำลิงก์หน้าสเปรดชีตปกติ (ที่ขึ้นต้นด้วย <code className="font-mono bg-rose-50 px-1 py-0.2 rounded text-[10px]">https://docs.google.com/spreadsheets/...</code>) มากรอกเป็นอันขาด!
+                          </li>
+                          <li>
+                            <strong className="text-slate-800">ต้องลงท้ายด้วย /exec เท่านั้น (ห้ามใช้ /dev):</strong> ตรวจสอบว่าลิงก์ลงท้ายด้วย <strong className="text-indigo-600">/exec</strong> เท่านั้น หากลงท้ายด้วย <strong className="text-rose-600">/dev</strong> จะติดปัญหาด้านสิทธิ์การเข้าถึงและความปลอดภัย (CORS Policy) ของทาง Google ทำให้แอปดึงข้อมูลไม่ได้
+                          </li>
                           <li>
                             <strong className="text-slate-800">เปลี่ยนผู้มีสิทธิ์เข้าถึง (Who has access):</strong> ขณะกด <strong className="text-rose-700">Deploy (ทำให้ใช้งานได้)</strong> ในหน้า Google Apps Script ต้องตั้งค่าหัวข้อ <strong className="text-rose-700">"ผู้มีสิทธิ์เข้าถึง" (Who has access)</strong> ให้เป็น <strong className="text-rose-700">"ทุกคน" (Anyone)</strong> เท่านั้น (หากเลือกเป็น "Only myself" ระบบจะไม่สามารถส่งข้อมูลข้ามสิทธิ์ได้)
                           </li>

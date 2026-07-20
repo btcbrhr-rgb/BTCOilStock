@@ -145,6 +145,7 @@ export default function ReceiptsTab({
                 <th className="py-3.5 px-4">ร้านคู่ค้าจัดส่ง</th>
                 <th className="py-3.5 px-4">ถังพัสดุรับเข้า</th>
                 <th className="py-3.5 px-4 text-right">จำนวนจัดซื้อ</th>
+                <th className="py-3.5 px-4 text-right">ราคา/หน่วย</th>
                 <th className="py-3.5 px-4 text-right">มูลค่ารวม (บาท)</th>
                 <th className="py-3.5 px-4">โครงการ</th>
                 <th className="py-3.5 px-4 text-center">สถานะบิล</th>
@@ -179,6 +180,9 @@ export default function ReceiptsTab({
                       <td className="py-3.5 px-4 text-right font-black text-indigo-650 font-mono">
                         {formatNumber(r.จำนวนที่ซื้อ, 2)} {r.หน่วยนับ}
                       </td>
+                      <td className="py-3.5 px-4 text-right font-bold text-slate-600 font-mono">
+                        {formatNumber(r.ราคา, 2)} ฿
+                      </td>
                       <td className="py-3.5 px-4 text-right font-black text-slate-900 font-mono">
                         {formatNumber(r.มูลค่ารวม, 2)}
                       </td>
@@ -204,7 +208,7 @@ export default function ReceiptsTab({
                 })
               ) : (
                 <tr>
-                  <td colSpan={9} className="py-10 text-center text-slate-400 font-medium">
+                  <td colSpan={10} className="py-10 text-center text-slate-400 font-medium">
                     ไม่พบรายการรับวัสดุพัสดุที่สอดคล้องกับพารามิเตอร์ค้าหา
                   </td>
                 </tr>
