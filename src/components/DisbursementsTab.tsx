@@ -48,6 +48,8 @@ export default function DisbursementsTab({
   const [search, setSearch] = useState("");
   const [productFilter, setProductFilter] = useState("all");
   const [projectFilter, setProjectFilter] = useState(filterProject || "all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
 
   // Keep project filter updated if changed outside
   useMemo(() => {
@@ -97,6 +99,15 @@ export default function DisbursementsTab({
       return String(b.IDรายการ || "").localeCompare(String(a.IDรายการ || ""), undefined, { numeric: true, sensitivity: "base" });
     });
   }, [disbursements, search, productFilter, projectFilter]);
+
+  // Capping current page safely within totalPages
+  const totalPages = Math.ceil(filteredDisbursements.length / itemsPerPage) || 1;
+  const activePage = Math.min(currentPage, totalPages);
+
+  const paginatedDisbursements = useMemo(() => {
+    const startIndex = (activePage - 1) * itemsPerPage;
+    return filteredDisbursements.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredDisbursements, activePage, itemsPerPage]);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
@@ -186,8 +197,8 @@ export default function DisbursementsTab({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-700 font-semibold">
-              {filteredDisbursements.length > 0 ? (
-                filteredDisbursements.map((d) => {
+              {paginatedDisbursements.length > 0 ? (
+                paginatedDisbursements.map((d) => {
                   let badge = "";
                   if (d.status === "รอตรวจสอบ" || d.สถานะ === "รอตรวจสอบ") {
                     badge = "bg-amber-50 text-amber-700 border-amber-200";
@@ -246,6 +257,77 @@ export default function DisbursementsTab({
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Controls */}
+        {filteredDisbursements.length > 0 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-150">
+            <div className="flex items-center space-x-2 text-slate-500 font-bold text-xs">
+              <span>แสดงผล</span>
+              <select
+                value={itemsPerPage}
+                onChange={(e) => {
+                  setItemsPerPage(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="bg-white border border-slate-200 text-slate-700 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500 font-semibold"
+              >
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+              <span>รายการ จากทั้งหมด {filteredDisbursements.length.toLocaleString("th-TH")} รายการ</span>
+            </div>
+
+            <div className="flex items-center space-x-1">
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={activePage === 1}
+                className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-transparent font-bold transition text-xs cursor-pointer"
+              >
+                ก่อนหน้า
+              </button>
+
+              {/* Page numbers */}
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter((page) => {
+                  return (
+                    page === 1 ||
+                    page === totalPages ||
+                    Math.abs(page - activePage) <= 1
+                  );
+                })
+                .map((page, index, array) => {
+                  const showEllipsisBefore = index > 0 && page - array[index - 1] > 1;
+                  return (
+                    <div key={page} className="flex items-center">
+                      {showEllipsisBefore && (
+                        <span className="px-1.5 text-slate-400 font-bold">...</span>
+                      )}
+                      <button
+                        onClick={() => setCurrentPage(page)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-black transition cursor-pointer ${
+                          activePage === page
+                            ? "bg-amber-600 text-slate-950 shadow-sm"
+                            : "border border-slate-200 text-slate-600 hover:bg-slate-50"
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    </div>
+                  );
+                })}
+
+              <button
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={activePage === totalPages}
+                className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-transparent font-bold transition text-xs cursor-pointer"
+              >
+                ถัดไป
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
