@@ -846,10 +846,17 @@ export default function App() {
 
             {/* Session Info */}
             <div className="flex items-center space-x-3">
-              <div className="hidden sm:flex items-center space-x-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold bg-indigo-50 border border-indigo-150 text-indigo-700">
-                <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping"></span>
-                <span>เชื่อมโยงสมดุลคลาวด์ (LIVE DB)</span>
-              </div>
+              {sheetsUrl ? (
+                <div className="hidden sm:flex items-center space-x-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold bg-emerald-50 border border-emerald-150 text-emerald-700 animate-pulse">
+                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping"></span>
+                  <span>เชื่อมต่อ Google Sheets แล้ว (LIVE)</span>
+                </div>
+              ) : (
+                <div className="hidden sm:flex items-center space-x-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold bg-amber-50 border border-amber-200 text-amber-700">
+                  <span className="w-1.5 h-1.5 bg-amber-500 rounded-full"></span>
+                  <span>ยังไม่ได้เชื่อมต่อ Google Sheets</span>
+                </div>
+              )}
 
               <div className="flex items-center space-x-2.5 bg-slate-100 border border-slate-200/80 p-1.5 pr-3.5 rounded-full">
                 <div className="w-7 h-7 bg-slate-900 text-amber-500 rounded-full flex items-center justify-center font-black text-xs shadow-sm">
